@@ -15,7 +15,30 @@ class HomeController extends Controller
     
     public function home(){
         $status="";
-            return view('welcome')->with('status', $status);
+
+
+        $user_ip = getenv('REMOTE_ADDR');
+        $geo = unserialize(file_get_contents("http://www.geoplugin.net/php.gp?ip=$user_ip"));
+        $country = $geo["geoplugin_countryName"];
+        $city = $geo["geoplugin_city"];
+ 
+        $msg="";
+        $url="http://api.openweathermap.org/data/2.5/forecast?q=$city&appid=49c0bad2c7458f1c76bec9654081a661";
+        $ch=curl_init();
+        curl_setopt($ch,CURLOPT_URL,$url);
+        curl_setopt($ch,CURLOPT_RETURNTRANSFER,true);
+        $result=curl_exec($ch);
+        curl_close($ch);
+        $result=json_decode($result,true);
+        if($result['cod']==200){
+            $status="yes";
+        }else{
+            $msg=$result['message'];
+        }
+         
+        return view("welcome")->with('results', $result)->with('status', $status);
+        
+            //return view('welcome')->with('status', $status);
     } 
 
     
@@ -35,15 +58,14 @@ class HomeController extends Controller
             $status="yes";
         }else{
             $msg=$result['message'];
+            session()->flash('notCorrect', 'city doesnt exist!');
         }
         $idu = session('id');
         $item = favory::where('idUser', '=', $idu)->where('name', '=', $city)->first();
            
         
-            if($item != null){
-                
-                session()->flash('exist', ' Report is deleted successfully.');
-                  }
+            if($item != null){ session()->flash('exist', 'do not show add message');  }
+            
                   
             
           
@@ -58,10 +80,10 @@ class HomeController extends Controller
         
         public function loginPost(Request $r){
             $email = $r->email;
-            
-            $client = Client::where('email', '=', $email)->first();
+            $password = $r->password;
+            $client = Client::where('email', '=', $email)->where('password', '=', $password)->first();
             if($client === null){
-
+                session()->flash('password', 'email or password not correct');
                 return view('login');
             }
             session()->put('name', $client->name);
